@@ -41,7 +41,7 @@ body {
 }
 
 .wrapper .text-right::before {
-    content: 'Back';
+    
     position: absolute;
     top: 60px;
     right: -50px;
