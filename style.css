@@ -20,7 +20,7 @@ body {
     position: relative;
     width: 800px;
     height: 500px;
-    background: linear-gradient(90deg, #54880e, #f2f2f2);
+    background: linear-gradient(270deg, #5e9e09, rgb(161, 191, 70));
     border-radius: 50px;
     box-shadow: 0 0 60px rgba(0, 0, 0, .3);
     padding: 60px;
