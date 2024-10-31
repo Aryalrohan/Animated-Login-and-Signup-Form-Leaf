@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Period Tracker</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #2E2E2E;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .progress-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 50px;
+            width: 200px;
+            height: 200px;
+        }
+        #progress-circle {
+            width: 100%;
+            height: 100%;
+        }
+        .days-left {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+        }
+        .calendar-container {
+            margin-top: 30px;
+            width: 90%;
+            max-width: 400px;
+        }
+        #calendar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        #prev-month, #next-month {
+            cursor: pointer;
+            font-size: 24px;
+            color: #FF4500;
+        }
+        #calendar {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        #calendar th, #calendar td {
+            width: 14.28%;
+            height: 40px;
+            text-align: center;
+            cursor: pointer;
+        }
+        #calendar td {
+            border: 1px solid #8A8A8A;
+        }
+        .highlighted-day {
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 5px;
+        }
+        .selected-day {
+            background-color: blue;
+            color: white;
+            border-radius: 50%;
+            padding: 5px;
+        }
+        .today {
+            background-color: yellow;
+            color: black;
+            border-radius: 50%;
+            padding: 5px;
+        }
+        #calendar td:hover {
+            background-color: #555;
+        }
+        #form-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        #last-day-input {
+            padding: 10px;
+            margin-bottom: 10px;
+            width: 200px;
+        }
+        #submit-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #FF4500;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Form Section for Last Day of Period -->
+    <div id="form-container">
+        <h2>Last Day of Your Period</h2>
+        <input type="date" id="last-day-input" required>
+        <input type='submit' id="submit-button"Submit >
+    </div>
+
+    <!-- Circular Progress Section -->
+    <div class="progress-container" style="display: none;" id="progress-container">
+        <canvas id="progress-circle"></canvas>
+        <div class="days-left" id="days-left">Days Left: 28</div>
+    </div>
+
+    <!-- Calendar Section -->
+    <div class="calendar-container" style="display: none;" id="calendar-container">
+        <!-- Calendar Header with Month and Year -->
+        <div id="calendar-header">
+            <span id="prev-month">&#x276E;</span> <!-- Previous Month Button -->
+            <span id="month-year"></span> <!-- Month and Year Display -->
+            <span id="next-month">&#x276F;</span> <!-- Next Month Button -->
+        </div>
+        <table id="calendar"></table>
+    </div>
+
+    <script>
+        // Parameters for period tracking
+        const totalDays = 28; // Length of the cycle
+        let daysLeft = totalDays; // Days left in the cycle
+        let lastPeriodDate; // Date of the last period
+        let intervalId; // To store the interval ID
+
+        // Draw Circular Progress
+        function drawProgressCircle(daysLeft) {
+            const canvas = document.getElementById("progress-circle");
+            const ctx = canvas.getContext("2d");
+            const radius = canvas.width / 2 - 15;
+            const angle = (daysLeft / totalDays) * 2 * Math.PI;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the background circle
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = "red"; // Background color
+            ctx.lineWidth = 20;
+            ctx.stroke();
+
+            // Draw the progress arc
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, radius, -Math.PI / 2, -Math.PI / 2 + angle, false);
+            ctx.strokeStyle = "white"; // Progress arc color
+            ctx.lineWidth = 20;
+            ctx.stroke();
+        }
+
+        // Set the canvas dimensions and draw the circle
+        const canvas = document.getElementById("progress-circle");
+        canvas.width = 200;
+        canvas.height = 200;
+
+        // Update the days left and draw the progress circle
+        function updateProgress() {
+            document.getElementById("days-left").innerText = `Days Left: ${daysLeft}`;
+            drawProgressCircle(daysLeft);
+        }
+
+        // Calendar functions
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+
+        function updateCalendarHeader() {
+            document.getElementById("month-year").innerText = `${monthNames[currentMonth]} ${currentYear}`;
+        }
+
+        function createCalendar(month, year) {
+            const calendar = document.getElementById("calendar");
+            calendar.innerHTML = "";
+
+            const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+            // Adjust for leap year in February
+            const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+            if (isLeapYear && month === 1) {
+                monthDays[1] = 29;
+            }
+
+            // Header
+            const headerRow = document.createElement("tr");
+            ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach(day => {
+                const th = document.createElement("th");
+                th.innerText = day;
+                headerRow.appendChild(th);
+            });
+            calendar.appendChild(headerRow);
+
+            const firstDay = new Date(year, month).getDay();
+            const daysInMonth = monthDays[month];
+            let date = 1;
+
+            let selectedCell = null;
+
+            const today = new Date();
+            const todayDate = today.getDate();
+            const todayMonth = today.getMonth();
+            const todayYear = today.getFullYear();
+
+            for (let i = 0; i < 6; i++) {
+                const row = document.createElement("tr");
+                for (let j = 0; j < 7; j++) {
+                    const cell = document.createElement("td");
+                    cell.style.padding = "10px";
+                    if (i === 0 && j < firstDay) {
+                        cell.innerText = "";
+                    } else if (date <= daysInMonth) {
+                        cell.innerText = date;
+
+                        // Highlight days of the period
+                        const periodDays = calculatePeriodDays();
+                        if (periodDays.includes(date)) {
+                            cell.classList.add("highlighted-day");
+                        }
+
+                        if (date === todayDate && month === todayMonth && year === todayYear) {
+                            cell.classList.add("today");
+                        }
+
+                        cell.addEventListener("click", () => {
+                            if (selectedCell) {
+                                selectedCell.classList.remove("selected-day");
+                            }
+                            cell.classList.add("selected-day");
+                            selectedCell = cell;
+                        });
+
+                        date++;
+                    }
+                    row.appendChild(cell);
+                }
+                calendar.appendChild(row);
+            }
+        }
+
+        // Calculate period days based on the last period date
+        function calculatePeriodDays() {
+            const periodDays = [];
+            if (lastPeriodDate) {
+                for (let i = 0; i < 5; i++) {
+                    const periodDate = new Date(lastPeriodDate);
+                    periodDate.setDate(periodDate.getDate() + i); // Assuming 5 days of period
+                    periodDays.push(periodDate.getDate());
+                }
+            }
+            return periodDays;
+        }
+
+        // Display Calendar for the initial month and year
+        function showCalendar() {
+            updateCalendarHeader();
+            createCalendar(currentMonth, currentYear);
+        }
+
+        document.getElementById("prev-month").addEventListener("click", () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            showCalendar();
+        });
+
+        document.getElementById("next-month").addEventListener("click", () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            showCalendar();
+        });
+
+        // Form submission logic
+        document.getElementById("submit-button").addEventListener("click", () => {
+            lastPeriodDate = new Date(document.getElementById("last-day-input").value);
+            const today = new Date();
+            const differenceInTime = today.getTime() - lastPeriodDate.getTime();
+            daysLeft = totalDays - Math.ceil(differenceInTime / (1000 * 3600 * 24)); // Calculate days left
+
+            // Show progress and calendar
+            document.getElementById("form-container").style.display = "none"; // Hide form
+            document.getElementById("progress-container").style.display = "flex"; // Show progress
+            document.getElementById("calendar-container").style.display = "block"; // Show calendar
+
+            updateProgress();
+            showCalendar();
+
+            // Start updating days left every 30 seconds
+            clearInterval(intervalId); // Clear previous interval if any
+            intervalId = setInterval(() => {
+                daysLeft--; // Decrease days left
+                updateProgress(); // Update the display
+            }, 30000); // Update every 30 seconds
+        });
+
+        // Initial setup
+        updateProgress();
+    </script>
+
+</body>
+</html>
